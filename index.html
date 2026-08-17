@@ -1,0 +1,1166 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pastagens & Rebanho — Maranhão</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:wght@600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#0E1E1D; --panel:#15302D; --panel2:#1B3C38; --line:#2C534E;
+  --bone:#ECE6D8; --bone-dim:#A8B5B0; --bone-mute:#7D908B;
+  --laterita:#C4552E; --babacu:#7FA23C; --gold:#E0A93B; --agua:#3E7C8C;
+  --up:#C4552E; --down:#3E7C8C;
+  --r:3px;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  --sans:"IBM Plex Sans",-apple-system,Segoe UI,Roboto,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden}
+body{font-family:var(--sans);background:var(--ink);color:var(--bone);font-size:13.5px;line-height:1.45}
+button,input,select{font-family:inherit;font-size:inherit;color:inherit}
+::-webkit-scrollbar{width:9px;height:9px}
+::-webkit-scrollbar-thumb{background:var(--line);border-radius:9px}
+::-webkit-scrollbar-track{background:transparent}
+
+/* ---------- shell ---------- */
+#app{display:grid;grid-template-rows:auto 1fr;height:100%}
+#shell{display:grid;grid-template-columns:305px 1fr 340px;min-height:0}
+
+/* ---------- header / signature strip ---------- */
+header{border-bottom:1px solid var(--line);background:linear-gradient(180deg,#15302D,#112724);
+  display:flex;align-items:stretch;gap:0;flex-wrap:wrap}
+.brand{padding:11px 18px;border-right:1px solid var(--line);min-width:270px}
+.brand h1{margin:0;font-size:15px;font-weight:700;letter-spacing:-.2px}
+.brand .sub{font-family:var(--mono);font-size:10px;color:var(--bone-mute);text-transform:uppercase;letter-spacing:.11em;margin-top:3px}
+.pulse{flex:1;display:flex;align-items:center;gap:14px;padding:8px 18px;border-right:1px solid var(--line);min-width:300px}
+.pulse .cap{font-family:var(--mono);font-size:9.5px;color:var(--bone-mute);text-transform:uppercase;letter-spacing:.11em;white-space:nowrap}
+#statePulse{flex:1;height:42px;min-width:120px}
+.pulse .fig{text-align:right;white-space:nowrap}
+.pulse .fig b{font-family:var(--mono);font-size:17px;font-weight:600;display:block;letter-spacing:-.5px}
+.pulse .fig span{font-family:var(--mono);font-size:9.5px;color:var(--bone-mute)}
+.hactions{display:flex;align-items:center;gap:7px;padding:8px 14px}
+
+/* ---------- generic controls ---------- */
+.btn{background:transparent;border:1px solid var(--line);border-radius:var(--r);padding:6px 11px;cursor:pointer;
+  font-family:var(--mono);font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--bone-dim);
+  transition:.14s}
+.btn:hover{border-color:var(--babacu);color:var(--bone)}
+.btn.on{background:var(--babacu);border-color:var(--babacu);color:#0E1E1D;font-weight:600}
+.btn:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--gold);outline-offset:1px}
+
+aside{background:var(--panel);overflow-y:auto;min-height:0}
+#left{border-right:1px solid var(--line)}
+#right{border-left:1px solid var(--line)}
+.sec{border-bottom:1px solid var(--line);padding:14px 16px}
+.sec h2{margin:0 0 10px;font-family:var(--mono);font-size:9.5px;font-weight:600;text-transform:uppercase;
+  letter-spacing:.14em;color:var(--gold);display:flex;justify-content:space-between;align-items:center}
+label.f{display:block;font-size:11px;color:var(--bone-dim);margin:9px 0 4px}
+select,input[type=text],input[type=number]{width:100%;background:var(--ink);border:1px solid var(--line);
+  border-radius:var(--r);padding:7px 8px;font-size:12px}
+input[type=range]{width:100%;accent-color:var(--babacu)}
+.row{display:flex;gap:6px}
+.row>*{flex:1;min-width:0}
+.chips{display:flex;flex-wrap:wrap;gap:5px}
+.hint{font-size:10.5px;color:var(--bone-mute);line-height:1.4;margin-top:7px}
+
+/* ---------- map ---------- */
+#mapwrap{position:relative;min-height:0}
+#map{position:absolute;inset:0;background:#0B1817}
+.leaflet-container{font-family:var(--sans);background:#0B1817}
+.leaflet-control-attribution{background:rgba(14,30,29,.85)!important;color:var(--bone-mute)!important;font-size:9.5px!important}
+.leaflet-control-attribution a{color:var(--bone-dim)!important}
+.leaflet-bar a{background:var(--panel);color:var(--bone);border-color:var(--line)}
+.leaflet-bar a:hover{background:var(--panel2)}
+
+.ovl{position:absolute;z-index:600;background:rgba(21,48,45,.94);border:1px solid var(--line);
+  border-radius:var(--r);backdrop-filter:blur(6px)}
+#legend{left:12px;bottom:12px;padding:11px 13px;max-width:260px}
+#legend .t{font-family:var(--mono);font-size:9.5px;text-transform:uppercase;letter-spacing:.11em;color:var(--gold);margin-bottom:8px}
+.ramp{display:flex;height:11px;border-radius:2px;overflow:hidden;border:1px solid var(--line)}
+.ramp i{flex:1}
+.rlab{display:flex;justify-content:space-between;font-family:var(--mono);font-size:9.5px;color:var(--bone-mute);margin-top:4px}
+.catlist{display:grid;gap:4px;margin-top:2px}
+.catlist div{display:flex;align-items:center;gap:7px;font-size:11px}
+.sw{width:12px;height:12px;border-radius:2px;flex:none;border:1px solid rgba(0,0,0,.35)}
+
+/* bivariate legend grid */
+#bivbox{display:none;margin-top:4px}
+.bivgrid{display:grid;grid-template-columns:repeat(3,17px);grid-template-rows:repeat(3,17px);gap:2px}
+.bivgrid i{display:block;border-radius:1px}
+.bivwrap{display:flex;gap:8px;align-items:flex-end}
+.bivy{writing-mode:vertical-rl;transform:rotate(180deg);font-family:var(--mono);font-size:8.5px;color:var(--bone-mute);letter-spacing:.06em}
+.bivx{font-family:var(--mono);font-size:8.5px;color:var(--bone-mute);letter-spacing:.06em;margin-top:4px}
+
+#timebar{left:50%;transform:translateX(-50%);bottom:12px;padding:9px 15px;display:flex;align-items:center;gap:12px}
+#timebar .yr{font-family:var(--mono);font-size:19px;font-weight:600;min-width:52px;text-align:center;letter-spacing:-.5px}
+#yearRange{width:210px}
+#status{right:12px;top:12px;padding:8px 11px;max-width:250px;font-family:var(--mono);font-size:10px;color:var(--bone-dim)}
+#status .ln{display:flex;gap:6px;align-items:baseline;margin:2px 0}
+.dot{width:6px;height:6px;border-radius:50%;flex:none;margin-top:4px}
+
+.leaflet-tooltip.mun{background:rgba(14,30,29,.96);border:1px solid var(--line);color:var(--bone);
+  font-family:var(--sans);font-size:12px;box-shadow:0 6px 22px rgba(0,0,0,.5);border-radius:var(--r);padding:8px 10px}
+.leaflet-tooltip.mun:before{display:none}
+.tt-n{font-weight:600;margin-bottom:5px;font-size:12.5px}
+.tt-r{display:flex;justify-content:space-between;gap:16px;font-family:var(--mono);font-size:10.5px;color:var(--bone-dim)}
+.tt-r b{color:var(--bone);font-weight:500}
+
+/* ---------- right panel ---------- */
+.kpis{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line)}
+.kpi{background:var(--panel);padding:10px 12px}
+.kpi b{display:block;font-family:var(--mono);font-size:16px;font-weight:600;letter-spacing:-.4px}
+.kpi span{font-family:var(--mono);font-size:9px;color:var(--bone-mute);text-transform:uppercase;letter-spacing:.08em}
+.chartbox{height:132px;position:relative;margin-top:6px}
+table.rank{width:100%;border-collapse:collapse;font-size:11.5px}
+table.rank td{padding:4px 0;border-bottom:1px solid rgba(44,83,78,.5)}
+table.rank td:last-child{text-align:right;font-family:var(--mono);font-weight:500}
+table.rank tr{cursor:pointer}
+table.rank tr:hover td{color:var(--gold)}
+.pill{display:inline-block;font-family:var(--mono);font-size:9.5px;padding:2px 7px;border-radius:99px;letter-spacing:.05em}
+.empty{color:var(--bone-mute);font-size:11.5px;padding:6px 0}
+
+/* ---------- modal ---------- */
+#modal{position:fixed;inset:0;background:rgba(6,14,13,.82);z-index:2000;display:none;align-items:center;justify-content:center;padding:22px}
+#modal.open{display:flex}
+.sheet{background:var(--panel);border:1px solid var(--line);border-radius:5px;max-width:800px;width:100%;
+  max-height:86vh;overflow-y:auto;padding:26px 30px}
+.sheet h3{font-family:"IBM Plex Serif",Georgia,serif;font-size:20px;margin:0 0 4px}
+.sheet h4{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.13em;color:var(--gold);
+  margin:22px 0 8px;border-top:1px solid var(--line);padding-top:14px}
+.sheet p,.sheet li{font-size:12.5px;color:var(--bone-dim);line-height:1.6}
+.sheet code{font-family:var(--mono);font-size:11px;background:var(--ink);padding:1.5px 5px;border-radius:2px;color:var(--babacu);word-break:break-all}
+.sheet a{color:var(--gold)}
+.warn{border-left:3px solid var(--gold);background:rgba(224,169,59,.08);padding:11px 14px;margin:12px 0;font-size:12.5px}
+#drop{border:1.5px dashed var(--line);border-radius:4px;padding:22px;text-align:center;color:var(--bone-mute);
+  font-size:12px;cursor:pointer;transition:.15s}
+#drop:hover,#drop.hot{border-color:var(--babacu);color:var(--bone)}
+
+#boot{position:fixed;inset:0;background:var(--ink);z-index:3000;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:14px;transition:opacity .4s}
+#boot .bt{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--bone-mute)}
+#bootbar{width:230px;height:2px;background:var(--line);overflow:hidden}
+#bootbar i{display:block;height:100%;width:0;background:var(--babacu);transition:width .3s}
+
+@media(max-width:1150px){
+  #shell{grid-template-columns:270px 1fr}
+  #right{position:absolute;right:0;top:0;bottom:0;width:320px;z-index:900;display:none}
+  #right.show{display:block}
+}
+@media(max-width:760px){
+  #shell{grid-template-columns:1fr;grid-template-rows:1fr auto}
+  #left{position:absolute;left:0;top:0;bottom:0;width:280px;z-index:900;display:none;border-right:1px solid var(--line)}
+  #left.show{display:block}
+  #right{width:100%}
+  .brand{min-width:0;border-right:none}
+  .pulse{display:none}
+}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+<div id="boot">
+  <div style="font-family:var(--mono);font-size:10px;letter-spacing:.2em;color:var(--gold)">MARANHÃO · 217 MUNICÍPIOS</div>
+  <div id="bootbar"><i></i></div>
+  <div class="bt" id="bootTxt">conectando ao IBGE</div>
+</div>
+
+<div id="app">
+<header>
+  <div class="brand">
+    <h1>Pastagens &amp; Rebanho — Maranhão</h1>
+    <div class="sub">Painel geoespacial · dados oficiais ao vivo</div>
+  </div>
+  <div class="pulse">
+    <div class="cap">Efetivo bovino<br>do estado</div>
+    <canvas id="statePulse"></canvas>
+    <div class="fig"><b id="pulseVal">—</b><span id="pulseDelta">—</span></div>
+  </div>
+  <div class="hactions">
+    <button class="btn" id="btnPanels">Painéis</button>
+    <button class="btn" id="btnImport">Importar pastagem</button>
+    <button class="btn" id="btnExport">Exportar</button>
+    <button class="btn" id="btnDocs">Fontes &amp; método</button>
+  </div>
+</header>
+
+<div id="shell">
+  <!-- ================= LEFT ================= -->
+  <aside id="left">
+    <div class="sec">
+      <h2>Camada do mapa</h2>
+      <select id="metric"></select>
+      <label class="f">Modo de leitura</label>
+      <div class="chips">
+        <button class="btn on" data-mode="choro">Intensidade</button>
+        <button class="btn" data-mode="trend">Aumento / queda</button>
+        <button class="btn" data-mode="typo">Perfil produtivo</button>
+        <button class="btn" data-mode="biv">Bivariado</button>
+      </div>
+      <div id="bivCtl" style="display:none">
+        <label class="f">Eixo horizontal</label><select id="bivX"></select>
+        <label class="f">Eixo vertical</label><select id="bivY"></select>
+      </div>
+      <div id="trendCtl" style="display:none">
+        <label class="f">Janela de comparação</label>
+        <div class="row"><select id="trendFrom"></select><select id="trendTo"></select></div>
+        <div class="hint">A cor mostra a variação percentual entre os dois anos. Azul = retração, laranja = expansão.</div>
+      </div>
+      <label class="f">Escala de cor</label>
+      <select id="classify">
+        <option value="quantile">Quantis (7 classes)</option>
+        <option value="equal">Intervalos iguais</option>
+        <option value="jenks">Quebras naturais</option>
+      </select>
+    </div>
+
+    <div class="sec">
+      <h2>Corte &amp; leite</h2>
+      <label class="f">Segmento em foco</label>
+      <div class="chips">
+        <button class="btn on" data-seg="total">Rebanho total</button>
+        <button class="btn" data-seg="corte">Corte</button>
+        <button class="btn" data-seg="leite">Leite</button>
+      </div>
+      <label class="f">Rebanho leiteiro por vaca ordenhada — <b id="kVal" style="font-family:var(--mono)">2,6</b>×</label>
+      <input type="range" id="kFactor" min="1.5" max="4" step="0.1" value="2.6">
+      <div class="hint">Converte vacas ordenhadas (PPM) em rebanho de aptidão leiteira. O restante do efetivo é atribuído à pecuária de corte. Ajuste conforme a realidade regional.</div>
+      <label class="f">Cabeça → unidade animal (UA)</label>
+      <input type="number" id="uaFactor" value="0.75" min="0.4" max="1.2" step="0.05">
+    </div>
+
+    <div class="sec">
+      <h2>Perfil de produtores</h2>
+      <div class="row">
+        <div><label class="f">Limiar leite (IL)</label><input type="number" id="thL" value="0.20" step="0.01" min="0.05" max="0.6"></div>
+        <div><label class="f">Limiar misto</label><input type="number" id="thM" value="0.10" step="0.01" min="0.01" max="0.4"></div>
+      </div>
+      <label class="f">Produtividade de corte (L/vaca/ano)</label>
+      <input type="number" id="thP" value="1200" step="50" min="200">
+      <div id="typoLegend" class="catlist" style="margin-top:11px"></div>
+    </div>
+
+    <div class="sec">
+      <h2>Sobreposições</h2>
+      <div class="chips">
+        <button class="btn" data-base="sat">Satélite</button>
+        <button class="btn on" data-base="light">Base clara</button>
+        <button class="btn" data-base="none">Sem base</button>
+      </div>
+      <label class="f">Camada WMS externa (pastagem / degradação)</label>
+      <input type="text" id="wmsUrl" value="https://maps.lapig.iesa.ufg.br/ows" spellcheck="false">
+      <input type="text" id="wmsLayer" placeholder="nome da camada" style="margin-top:5px" spellcheck="false">
+      <div class="row" style="margin-top:6px">
+        <button class="btn" id="wmsAdd">Adicionar</button>
+        <button class="btn" id="wmsClear">Remover</button>
+      </div>
+      <div class="hint">Aceita qualquer serviço WMS público — LAPIG/Atlas das Pastagens, MapBiomas, INPE. O nome da camada vem do <code>GetCapabilities</code> do servidor.</div>
+    </div>
+
+    <div class="sec">
+      <h2>Filtros</h2>
+      <input type="text" id="search" placeholder="Buscar município…">
+      <label class="f">Efetivo bovino mínimo</label>
+      <input type="range" id="minHerd" min="0" max="100" value="0">
+      <div class="hint" id="minHerdTxt">Todos os municípios</div>
+    </div>
+  </aside>
+
+  <!-- ================= MAP ================= -->
+  <div id="mapwrap">
+    <div id="map"></div>
+    <div class="ovl" id="status"></div>
+    <div class="ovl" id="legend">
+      <div class="t" id="legTitle">—</div>
+      <div id="legBody"></div>
+      <div id="bivbox">
+        <div class="bivwrap">
+          <div class="bivy" id="bivYLab"></div>
+          <div><div class="bivgrid" id="bivGrid"></div></div>
+        </div>
+        <div class="bivx" id="bivXLab"></div>
+      </div>
+    </div>
+    <div class="ovl" id="timebar">
+      <button class="btn" id="play">▶</button>
+      <span class="yr" id="yearLbl">—</span>
+      <input type="range" id="yearRange" min="0" max="0" value="0">
+    </div>
+  </div>
+
+  <!-- ================= RIGHT ================= -->
+  <aside id="right">
+    <div class="sec" style="padding:0">
+      <div class="kpis" id="kpis"></div>
+    </div>
+    <div class="sec">
+      <h2 id="detailTitle">Maranhão · síntese</h2>
+      <div id="detailMeta" class="hint" style="margin:0 0 8px"></div>
+      <div class="chartbox"><canvas id="chartHerd"></canvas></div>
+      <div class="hint" id="chartCap">Efetivo bovino, vacas ordenhadas e produção de leite.</div>
+    </div>
+    <div class="sec">
+      <h2>Composição do rebanho</h2>
+      <div class="chartbox" style="height:120px"><canvas id="chartMix"></canvas></div>
+    </div>
+    <div class="sec">
+      <h2><span>Maiores altas</span><span style="color:var(--bone-mute);font-size:9px" id="rankWin"></span></h2>
+      <table class="rank" id="tblUp"></table>
+    </div>
+    <div class="sec">
+      <h2>Maiores quedas</h2>
+      <table class="rank" id="tblDown"></table>
+    </div>
+  </aside>
+</div>
+</div>
+
+<!-- ================= MODAL ================= -->
+<div id="modal"><div class="sheet" id="sheet"></div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script>
+"use strict";
+/* =====================================================================
+   PLATAFORMA PASTAGENS & REBANHO — MARANHÃO (UF 21)
+   Todos os dados numéricos são obtidos em tempo de execução das APIs
+   oficiais do IBGE. Nenhum valor é embutido no código.
+   ===================================================================== */
+
+const UF = 21;
+const IBGE = "https://servicodados.ibge.gov.br/api";
+const fmt  = (n,d=0)=> n==null||!isFinite(n) ? "—" : n.toLocaleString("pt-BR",{minimumFractionDigits:d,maximumFractionDigits:d});
+const fmtC = n => n==null||!isFinite(n) ? "—" : (Math.abs(n)>=1e6? (n/1e6).toFixed(2)+" mi" : Math.abs(n)>=1e3? (n/1e3).toFixed(1)+" mil" : fmt(n));
+const pct  = n => n==null||!isFinite(n) ? "—" : (n>0?"+":"")+n.toFixed(1)+"%";
+
+const S = {
+  geo:null, mun:new Map(), years:[], year:null,
+  metric:"efetivo", mode:"choro", seg:"total", classify:"quantile",
+  k:2.6, ua:0.75, thL:.20, thM:.10, thP:1200,
+  selected:null, minHerd:0, sources:[], pasture:false,
+  trendFrom:null, trendTo:null
+};
+
+/* ---------- indicadores disponíveis ---------- */
+const METRICS = {
+  efetivo:   {lab:"Efetivo bovino (cabeças)",              unit:"cab",     ramp:"seq",  get:(m,y,s)=>segHerd(m,y,s.seg)},
+  densMun:   {lab:"Densidade bovina (cab/km² do município)",unit:"cab/km²",ramp:"seq",  get:(m,y,s)=>div(segHerd(m,y,s.seg), m.areaKm2)},
+  vacas:     {lab:"Vacas ordenhadas (cabeças)",            unit:"cab",     ramp:"milk", get:(m,y)=>val(m.vacas,y)},
+  leite:     {lab:"Produção de leite (mil litros)",        unit:"mil L",   ramp:"milk", get:(m,y)=>val(m.leite,y)},
+  prodLeite: {lab:"Produtividade leiteira (L/vaca/ano)",   unit:"L/vaca",  ramp:"milk", get:(m,y)=>{const v=val(m.vacas,y),l=val(m.leite,y);return (v&&l)? l*1000/v : null}},
+  il:        {lab:"Índice de aptidão leiteira (IL)",       unit:"",        ramp:"div2", get:(m,y)=>{const v=val(m.vacas,y),e=val(m.efetivo,y);return (v&&e)? v/e : null}},
+  corte:     {lab:"Rebanho de corte estimado (cabeças)",   unit:"cab",     ramp:"beef", get:(m,y)=>segHerd(m,y,"corte")},
+  leiteReb:  {lab:"Rebanho leiteiro estimado (cabeças)",   unit:"cab",     ramp:"milk", get:(m,y)=>segHerd(m,y,"leite")},
+  uaMun:     {lab:"Pressão de pastejo (UA/km² municipal)", unit:"UA/km²",  ramp:"seq",  get:(m,y,s)=>div(segHerd(m,y,s.seg)*s.ua, m.areaKm2)},
+  /* --- dependem de importação de dados de pastagem --- */
+  pastArea:  {lab:"Área de pastagem (ha)",                 unit:"ha",      ramp:"seq",  needs:1, get:m=>m.pastArea},
+  pastDegPc: {lab:"Pastagem degradada (% da pastagem)",    unit:"%",       ramp:"deg",  needs:1, get:m=>m.pastDeg!=null&&m.pastArea?100*m.pastDeg/m.pastArea:null},
+  pastDegHa: {lab:"Pastagem degradada (ha)",               unit:"ha",      ramp:"deg",  needs:1, get:m=>m.pastDeg},
+  lotacao:   {lab:"Lotação real (UA/ha de pastagem)",      unit:"UA/ha",   ramp:"deg",  needs:1, get:(m,y,s)=>div(segHerd(m,y,s.seg)*s.ua, m.pastArea)}
+};
+
+const RAMPS = {
+  seq : ["#F2EAD3","#E4D0A4","#D6AE73","#C98A4E","#BC6634","#A54826","#7E2F1B"],
+  milk: ["#EDF1E4","#D5E0BE","#B8CD96","#98B872","#7FA23C","#5F7C2C","#41571E"],
+  beef: ["#F4EBE2","#E6CDB8","#D6A98C","#C48566","#B06246","#93452F","#70301F"],
+  deg : ["#E9F0EE","#CFE0D6","#EFE0AE","#E5B96C","#D48843","#B85B2C","#8C3418"],
+  div2: ["#3E7C8C","#6E9FA5","#A8C3BE","#E3E0CF","#E0B57E","#CE8148","#B04B23"]
+};
+const DIVER = ["#245F6E","#3E7C8C","#7CA8AE","#C9D3CB","#E3B183","#CE7A44","#A83E1E"];
+
+const TYPO = [
+  {id:"corte_esp", lab:"Corte especializado",         c:"#8C3418"},
+  {id:"corte_com", lab:"Corte com leite complementar",c:"#C4552E"},
+  {id:"misto_fam", lab:"Misto de base familiar",      c:"#E0A93B"},
+  {id:"misto_tec", lab:"Misto tecnificado",           c:"#B8CD96"},
+  {id:"leite_fam", lab:"Leite familiar extensivo",    c:"#7FA23C"},
+  {id:"leite_esp", lab:"Leite especializado",         c:"#41571E"},
+  {id:"semdado",   lab:"Sem dado suficiente",         c:"#4A5F5B"}
+];
+const BIV = ["#E8E6DC","#C6D2BE","#8FB185","#E2C08D","#B6AE79","#7E9660","#D08A4E","#A97845","#6E5C38"];
+
+const val = (o,y)=> o && o[y]!=null ? o[y] : null;
+const div = (a,b)=> (a!=null&&b) ? a/b : null;
+function segHerd(m,y,seg){
+  const e = val(m.efetivo,y); if(e==null) return null;
+  if(seg==="total") return e;
+  const v = val(m.vacas,y);
+  if(v==null) return seg==="corte" ? e : null;
+  const leite = Math.min(e, v*S.k);
+  return seg==="leite" ? leite : Math.max(0, e-leite);
+}
+
+/* =====================================================================
+   1. CARREGAMENTO
+   ===================================================================== */
+const boot=(p,t)=>{document.querySelector("#bootbar i").style.width=p+"%";document.getElementById("bootTxt").textContent=t};
+
+async function jget(url){
+  try{ return await retry(url,3); }
+  catch(e){ throw new Error(url.replace(IBGE,"").split("?")[0]+" → "+e.message); }
+}
+
+/* --- descobre variável/categoria pelo NOME (evita códigos fixos) --- */
+async function agregadoMeta(id){ return jget(`${IBGE}/v3/agregados/${id}/metadados`); }
+function pickVar(meta,...kw){
+  const v = meta.variaveis.find(v=>kw.every(k=>v.nome.toLowerCase().includes(k)));
+  if(!v) throw new Error(`variável [${kw}] não existe na tabela`);
+  return v.id;
+}
+function pickCat(meta,clsKw,catKw){
+  for(const c of (meta.classificacoes||[])){
+    if(!c.nome.toLowerCase().includes(clsKw)) continue;
+    const cat=c.categorias.find(x=>x.nome.toLowerCase().includes(catKw));
+    if(cat) return {cls:c.id,cat:cat.id};
+  }
+  throw new Error(`categoria [${catKw}] não encontrada`);
+}
+async function periods(id,n){
+  const p = await jget(`${IBGE}/v3/agregados/${id}/periodos`);
+  return p.map(x=>String(x.id)).sort().slice(-n);
+}
+/* =====================================================================
+   Série municipal para todo o MA.
+   A API v3 de agregados devolve HTTP 500 quando período × localidade
+   ultrapassa o limite interno de valores. Por isso: fatiamos os anos,
+   caímos para o SIDRA quando a v3 recusa, e subdividimos o intervalo
+   pela metade a cada falha até chegar a um ano isolado.
+   ===================================================================== */
+const clean = v => (v==="-"||v==="..."||v===".."||v==="X"||v==="…"||v==null)
+                    ? null : (isFinite(Number(v)) ? Number(v) : null);
+
+async function retry(url,tries=2){
+  let last;
+  for(let i=0;i<tries;i++){
+    try{
+      const r = await fetch(url,{headers:{Accept:"application/json"}});
+      if(!r.ok) throw new Error("HTTP "+r.status);
+      return await r.json();
+    }catch(e){ last=e; if(i<tries-1) await new Promise(s=>setTimeout(s,350*(i+1))); }
+  }
+  throw last;
+}
+function merge(out,part){
+  part.forEach((o,id)=>{ const t=out.get(id)||{}; Object.assign(t,o); out.set(id,t); });
+}
+
+async function viaV3(tab,varId,per,cls){
+  const c = cls ? `&classificacao=${cls.cls}[${cls.cat}]` : "";
+  const j = await retry(`${IBGE}/v3/agregados/${tab}/periodos/${per.join("|")}/variaveis/${varId}`
+                      + `?localidades=N6[in%20N3%20${UF}]${c}`);
+  const out=new Map();
+  (j[0]?.resultados||[]).forEach(res=>(res.series||[]).forEach(s=>{
+    const id=String(s.localidade.id), o=out.get(id)||{};
+    for(const [y,v] of Object.entries(s.serie)){ const n=clean(v); if(n!=null) o[y]=n; }
+    out.set(id,o);
+  }));
+  if(!out.size) throw new Error("v3 sem séries");
+  return out;
+}
+
+async function viaSidra(tab,varId,per,cls){
+  const c = cls ? `/c${cls.cls}/${cls.cat}` : "";
+  const j = await retry(`https://apisidra.ibge.gov.br/values/t/${tab}`
+          + `/n6/in%20n3%20${UF}/v/${varId}/p/${per.join(",")}${c}?formato=json`);
+  if(!Array.isArray(j)||j.length<2) throw new Error("SIDRA sem linhas");
+  const head=j[0], ks=Object.keys(head);
+  const kMun = ks.find(k=>/^D\d+C$/.test(k) && /munic/i.test(head[k]));
+  const kAno = ks.find(k=>/^D\d+C$/.test(k) && /(ano|per[ií]odo)/i.test(head[k]));
+  if(!kMun||!kAno) throw new Error("SIDRA sem dimensão de município/ano");
+  const out=new Map();
+  j.slice(1).forEach(r=>{
+    const n=clean(r.V); if(n==null) return;
+    const id=String(r[kMun]), o=out.get(id)||{};
+    o[String(r[kAno])]=n; out.set(id,o);
+  });
+  if(!out.size) throw new Error("SIDRA sem valores");
+  return out;
+}
+
+async function fetchRange(tab,varId,per,cls,out,failed){
+  for(const fn of [viaV3,viaSidra]){
+    try{ merge(out, await fn(tab,varId,per,cls)); return true; }catch(e){}
+  }
+  if(per.length===1){ failed.push(per[0]); return false; }
+  const mid=Math.ceil(per.length/2);
+  const a=await fetchRange(tab,varId,per.slice(0,mid),cls,out,failed);
+  const b=await fetchRange(tab,varId,per.slice(mid),cls,out,failed);
+  return a||b;
+}
+
+async function serieMun(tab,varId,per,cls,onStep){
+  const out=new Map(), failed=[], STEP=4;
+  for(let i=0;i<per.length;i+=STEP){
+    await fetchRange(tab,varId,per.slice(i,i+STEP),cls,out,failed);
+    if(onStep) onStep(Math.min(per.length,i+STEP), per.length);
+  }
+  if(!out.size) throw new Error("nenhum período retornou dados");
+  out.failed=failed;
+  return out;
+}
+
+/* --- área geodésica a partir da geometria (esférica) --- */
+function ringArea(ring){
+  const R=6378137, rad=d=>d*Math.PI/180; let a=0;
+  for(let i=0,n=ring.length;i<n;i++){
+    const [x1,y1]=ring[i], [x2,y2]=ring[(i+1)%n];
+    a += rad(x2-x1)*(2+Math.sin(rad(y1))+Math.sin(rad(y2)));
+  }
+  return a*R*R/2;
+}
+function geoArea(g){
+  const poly=p=>{let a=Math.abs(ringArea(p[0]));for(let i=1;i<p.length;i++)a-=Math.abs(ringArea(p[i]));return a};
+  if(g.type==="Polygon") return poly(g.coordinates);
+  if(g.type==="MultiPolygon") return g.coordinates.reduce((s,p)=>s+poly(p),0);
+  return 0;
+}
+
+async function load(){
+  const log=[];
+  try{
+    boot(8,"malha municipal do Maranhão");
+    let q="maxima";
+    try{
+      S.geo = await jget(`${IBGE}/v3/malhas/estados/${UF}?formato=application/vnd.geo+json&qualidade=maxima&intrarregiao=municipio`);
+    }catch(e){
+      q="intermediaria";
+      S.geo = await jget(`${IBGE}/v3/malhas/estados/${UF}?formato=application/vnd.geo+json&qualidade=intermediaria&intrarregiao=municipio`);
+    }
+    log.push({ok:1,t:`Malha municipal (IBGE v3, qualidade ${q})`});
+
+    boot(22,"nomes e regiões");
+    const locs = await jget(`${IBGE}/v1/localidades/estados/${UF}/municipios`);
+    log.push({ok:1,t:`Localidades — ${locs.length} municípios`});
+    const nome=new Map(locs.map(l=>[String(l.id),l]));
+
+    S.geo.features.forEach(f=>{
+      const id=String(f.properties.codarea||f.properties.codigo||f.id);
+      const l=nome.get(id);
+      const rec={id, nome:l?l.nome:("Município "+id),
+        meso:l?.microrregiao?.mesorregiao?.nome||"—",
+        micro:l?.microrregiao?.nome||"—",
+        imed:l?.["regiao-imediata"]?.nome||"—",
+        areaKm2:geoArea(f.geometry)/1e6,
+        efetivo:{},vacas:{},leite:{},pastArea:null,pastDeg:null};
+      f.properties.id=id; f.properties.nome=rec.nome;
+      S.mun.set(id,rec);
+    });
+
+    /* ---- efetivo bovino (PPM, tabela 3939) ---- */
+    boot(30,"efetivo bovino — PPM/IBGE");
+    const m39 = await agregadoMeta(3939);
+    const v39 = pickVar(m39,"efetivo");
+    const c39 = pickCat(m39,"rebanho","bovino");
+    const p39 = await periods(3939,16);
+    const d39 = await serieMun(3939,v39,p39,c39,
+      (i,n)=>boot(30+22*i/n, `efetivo bovino · ${i} de ${n} anos`));
+    d39.forEach((o,id)=>{const m=S.mun.get(id); if(m) m.efetivo=o});
+
+    /* mantém apenas os anos que de fato voltaram com dados */
+    const has=new Set();
+    S.mun.forEach(m=>Object.keys(m.efetivo).forEach(y=>has.add(y)));
+    S.years = p39.filter(y=>has.has(y));
+    if(!S.years.length) throw new Error("a PPM não retornou nenhum ano para o Maranhão");
+    log.push({ok:1,t:`PPM 3939 · efetivo bovino · ${S.years[0]}–${S.years.at(-1)}`});
+    if(d39.failed?.length) log.push({ok:0,t:`Anos sem resposta do IBGE: ${d39.failed.join(", ")}`});
+
+    /* ---- produção de leite (tabela 74) ---- */
+    boot(54,"produção de leite");
+    try{
+      const m74=await agregadoMeta(74);
+      const v74=pickVar(m74,"quantidade produzida");
+      const c74=pickCat(m74,"produto","leite");
+      const d74=await serieMun(74,v74,S.years,c74,
+        (i,n)=>boot(54+20*i/n, `produção de leite · ${i} de ${n} anos`));
+      d74.forEach((o,id)=>{const m=S.mun.get(id); if(m) m.leite=o});
+      log.push({ok:1,t:"PPM 74 · produção de leite"});
+    }catch(e){ log.push({ok:0,t:"Leite indisponível: "+e.message}); }
+
+    /* ---- vacas ordenhadas (tabela 94, com 74 como alternativa) ---- */
+    boot(76,"vacas ordenhadas");
+    let okV=false;
+    for(const tab of [94,74]){
+      try{
+        const mm=await agregadoMeta(tab);
+        const vv=pickVar(mm,"vacas ordenhadas");
+        const dd=await serieMun(tab,vv,S.years,null,
+          (i,n)=>boot(76+18*i/n, `vacas ordenhadas · ${i} de ${n} anos`));
+        dd.forEach((o,id)=>{const m=S.mun.get(id); if(m) m.vacas=o});
+        log.push({ok:1,t:`PPM ${tab} · vacas ordenhadas`}); okV=true; break;
+      }catch(e){}
+    }
+    if(!okV) log.push({ok:0,t:"Vacas ordenhadas indisponíveis — separação corte/leite fica limitada"});
+
+    boot(96,"montando o painel");
+    S.sources=log;
+  }catch(err){
+    S.sources=[...log,{ok:0,t:"Falha: "+err.message}];
+    document.getElementById("bootTxt").innerHTML =
+      `<span style="color:#C4552E">O IBGE não respondeu.</span><br>
+       <span style="font-size:10px;color:#7D908B">${err.message}</span><br>
+       <button class="btn" id="again" style="margin-top:12px">Tentar de novo</button>`;
+    document.getElementById("again").onclick=()=>location.reload();
+    throw err;
+  }
+}
+
+/* =====================================================================
+   2. MAPA
+   ===================================================================== */
+let map, layer, wmsLayer=null, base=null;
+const BASES = {
+  light:()=>L.tileLayer("https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png",
+    {attribution:'&copy; OpenStreetMap &copy; CARTO',maxZoom:19,opacity:.55}),
+  sat:()=>L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    {attribution:'Esri, Maxar, Earthstar Geographics',maxZoom:19})
+};
+
+function initMap(){
+  map = L.map("map",{zoomControl:true,attributionControl:true,preferCanvas:true}).setView([-5.2,-45.2],6.4);
+  map.attributionControl.addAttribution('Dados: <b>IBGE/PPM</b>');
+  setBase("light");
+  layer = L.geoJSON(S.geo,{
+    style:styleFor,
+    onEachFeature:(f,l)=>{
+      l.on("mouseover",()=>{l.setStyle({weight:2.2,color:"#E0A93B"});l.bringToFront();tip(f,l)});
+      l.on("mouseout" ,()=>{layer.resetStyle(l); if(S.selected===f.properties.id) l.setStyle(SEL)});
+      l.on("click",()=>select(f.properties.id));
+    }
+  }).addTo(map);
+  map.fitBounds(layer.getBounds(),{padding:[16,16]});
+}
+const SEL={weight:2.6,color:"#ECE6D8",fillOpacity:.92};
+function setBase(k){
+  if(base){map.removeLayer(base);base=null}
+  if(BASES[k]) base=BASES[k]().addTo(map), base.bringToBack();
+}
+
+/* ---------- classificação ---------- */
+function values(){
+  const M=METRICS[S.metric], out=[];
+  S.mun.forEach(m=>{const v=M.get(m,S.year,S); if(v!=null&&isFinite(v)) out.push(v)});
+  return out.sort((a,b)=>a-b);
+}
+function breaks(vals,n){
+  if(!vals.length) return [];
+  if(S.classify==="equal"){
+    const a=vals[0],b=vals.at(-1),st=(b-a)/n;
+    return Array.from({length:n-1},(_,i)=>a+st*(i+1));
+  }
+  if(S.classify==="jenks"){ // Head/tail-ish: quebras por média recursiva
+    let arr=vals.slice(), br=[];
+    for(let i=0;i<n-1&&arr.length>2;i++){
+      const mu=arr.reduce((s,x)=>s+x,0)/arr.length;
+      br.push(mu); arr=arr.filter(x=>x>mu);
+    }
+    while(br.length<n-1) br.push(vals.at(-1));
+    return br.sort((a,b)=>a-b);
+  }
+  return Array.from({length:n-1},(_,i)=>vals[Math.floor(vals.length*(i+1)/n)]);
+}
+let BR=[], RAMP=RAMPS.seq;
+function recomputeBreaks(){ RAMP=RAMPS[METRICS[S.metric].ramp]||RAMPS.seq; BR=breaks(values(),RAMP.length); }
+function colorFor(v){
+  if(v==null||!isFinite(v)) return "#3A4E4A";
+  let i=0; while(i<BR.length && v>BR[i]) i++;
+  return RAMP[Math.min(i,RAMP.length-1)];
+}
+
+/* ---------- variação (aumento/queda) ---------- */
+function changePct(m){
+  const a=segHerd(m,S.trendFrom,S.seg), b=segHerd(m,S.trendTo,S.seg);
+  return (a&&b)? 100*(b-a)/a : null;
+}
+function divColor(p){
+  if(p==null||!isFinite(p)) return "#3A4E4A";
+  const st=[-30,-15,-5,5,15,30];
+  let i=0; while(i<st.length && p>st[i]) i++;
+  return DIVER[i];
+}
+
+/* ---------- tipologia de perfil produtivo ---------- */
+function typoOf(m){
+  const e=val(m.efetivo,S.year), v=val(m.vacas,S.year), l=val(m.leite,S.year);
+  if(!e) return TYPO[6];
+  if(v==null) return TYPO[6];
+  const IL=v/e, P=(l&&v)? l*1000/v : null;
+  if(IL < S.thM/2)                    return TYPO[0];
+  if(IL < S.thM)                      return TYPO[1];
+  if(IL < S.thL)                      return (P!=null&&P>=S.thP)? TYPO[3] : TYPO[2];
+  return (P!=null&&P>=S.thP)? TYPO[5] : TYPO[4];
+}
+
+/* ---------- bivariado ---------- */
+function terc(arr,v){ if(v==null) return null; const q1=arr[Math.floor(arr.length/3)],q2=arr[Math.floor(2*arr.length/3)]; return v<=q1?0:v<=q2?1:2; }
+let BIVX=[],BIVY=[];
+function prepBiv(){
+  const gx=METRICS[document.getElementById("bivX").value], gy=METRICS[document.getElementById("bivY").value];
+  BIVX=[];BIVY=[];
+  S.mun.forEach(m=>{const a=gx.get(m,S.year,S),b=gy.get(m,S.year,S); if(a!=null)BIVX.push(a); if(b!=null)BIVY.push(b)});
+  BIVX.sort((a,b)=>a-b); BIVY.sort((a,b)=>a-b);
+}
+function bivColor(m){
+  const gx=METRICS[document.getElementById("bivX").value], gy=METRICS[document.getElementById("bivY").value];
+  const x=terc(BIVX,gx.get(m,S.year,S)), y=terc(BIVY,gy.get(m,S.year,S));
+  if(x==null||y==null) return "#3A4E4A";
+  return BIV[(2-y)*3+x];
+}
+
+function styleFor(f){
+  const m=S.mun.get(f.properties.id);
+  const hidden = S.minHerd>0 && (val(m.efetivo,S.year)||0) < S.minHerd;
+  let fill;
+  if(S.mode==="trend")      fill=divColor(changePct(m));
+  else if(S.mode==="typo")  fill=typoOf(m).c;
+  else if(S.mode==="biv")   fill=bivColor(m);
+  else                      fill=colorFor(METRICS[S.metric].get(m,S.year,S));
+  return {fillColor:fill, fillOpacity:hidden?.07:.85, color:"#0E1E1D", weight:.4};
+}
+function tip(f,l){
+  const m=S.mun.get(f.properties.id), y=S.year;
+  const e=val(m.efetivo,y), v=val(m.vacas,y), li=val(m.leite,y);
+  const rows=[
+    ["Efetivo bovino", fmt(e)+" cab"],
+    ["Corte (est.)",   fmt(segHerd(m,y,"corte"))+" cab"],
+    ["Leite (est.)",   fmt(segHerd(m,y,"leite"))+" cab"],
+    ["Vacas ordenhadas", fmt(v)],
+    ["Leite",          li!=null?fmt(li)+" mil L":"—"],
+    ["Variação "+S.trendFrom+"→"+S.trendTo, pct(changePct(m))],
+    ["Perfil",         typoOf(m).lab]
+  ];
+  if(S.pasture) rows.push(["Pastagem degradada",
+    m.pastDeg!=null&&m.pastArea? (100*m.pastDeg/m.pastArea).toFixed(1)+"%" : "—"]);
+  l.bindTooltip(`<div class="tt-n">${m.nome}</div>`+
+    rows.map(r=>`<div class="tt-r"><span>${r[0]}</span><b>${r[1]}</b></div>`).join(""),
+    {className:"mun",sticky:true}).openTooltip();
+}
+
+function redraw(){
+  if(S.mode==="choro") recomputeBreaks();
+  if(S.mode==="biv") prepBiv();
+  layer.setStyle(styleFor);
+  if(S.selected){ layer.eachLayer(l=>{ if(l.feature.properties.id===S.selected) l.setStyle(SEL); }); }
+  drawLegend(); renderRight();
+}
+
+/* =====================================================================
+   3. LEGENDA
+   ===================================================================== */
+function drawLegend(){
+  const T=document.getElementById("legTitle"), B=document.getElementById("legBody"),
+        V=document.getElementById("bivbox");
+  V.style.display="none"; B.style.display="";
+  if(S.mode==="trend"){
+    T.textContent=`Variação do rebanho ${S.seg==="total"?"":"— "+S.seg} · ${S.trendFrom}→${S.trendTo}`;
+    B.innerHTML=`<div class="ramp">${DIVER.map(c=>`<i style="background:${c}"></i>`).join("")}</div>
+      <div class="rlab"><span>≤ −30%</span><span>0</span><span>≥ +30%</span></div>`;
+  }else if(S.mode==="typo"){
+    T.textContent="Perfil produtivo do município";
+    B.innerHTML=`<div class="catlist">${TYPO.map(t=>
+      `<div><i class="sw" style="background:${t.c}"></i>${t.lab}</div>`).join("")}</div>`;
+  }else if(S.mode==="biv"){
+    T.textContent="Leitura bivariada";
+    B.style.display="none"; V.style.display="block";
+    document.getElementById("bivGrid").innerHTML=BIV.map(c=>`<i style="background:${c}"></i>`).join("");
+    document.getElementById("bivXLab").textContent="→ "+METRICS[document.getElementById("bivX").value].lab.split("(")[0];
+    document.getElementById("bivYLab").textContent="→ "+METRICS[document.getElementById("bivY").value].lab.split("(")[0];
+  }else{
+    const M=METRICS[S.metric];
+    T.textContent=M.lab;
+    const lo=values()[0], hi=values().at(-1);
+    B.innerHTML=`<div class="ramp">${RAMP.map(c=>`<i style="background:${c}"></i>`).join("")}</div>
+      <div class="rlab"><span>${fmtC(lo)}</span><span>${fmtC(hi)} ${M.unit}</span></div>`;
+  }
+}
+
+/* =====================================================================
+   4. PAINEL DIREITO
+   ===================================================================== */
+let chH=null, chM=null, chP=null;
+function stateSeries(){
+  const s={};
+  S.years.forEach(y=>{
+    let e=0,v=0,l=0;
+    S.mun.forEach(m=>{e+=val(m.efetivo,y)||0; v+=val(m.vacas,y)||0; l+=val(m.leite,y)||0});
+    s[y]={e,v,l};
+  });
+  return s;
+}
+function renderRight(){
+  const y=S.year, sel=S.selected? S.mun.get(S.selected):null;
+  const K=document.getElementById("kpis");
+  const agg=(f)=>{let t=0;S.mun.forEach(m=>{const v=f(m); if(v!=null)t+=v});return t};
+
+  let e,v,l,corte,leite,area,name,meta;
+  if(sel){
+    e=val(sel.efetivo,y); v=val(sel.vacas,y); l=val(sel.leite,y);
+    corte=segHerd(sel,y,"corte"); leite=segHerd(sel,y,"leite"); area=sel.areaKm2;
+    name=sel.nome; meta=`${sel.micro} · ${sel.meso} · ${fmt(area)} km² · cód. IBGE ${sel.id}`;
+  }else{
+    e=agg(m=>val(m.efetivo,y)); v=agg(m=>val(m.vacas,y)); l=agg(m=>val(m.leite,y));
+    corte=agg(m=>segHerd(m,y,"corte")); leite=agg(m=>segHerd(m,y,"leite"));
+    area=agg(m=>m.areaKm2); name="Maranhão · síntese";
+    let n=0;S.mun.forEach(m=>{if(val(m.efetivo,y))n++});
+    meta=`${n} municípios com rebanho registrado · ${fmt(area)} km²`;
+  }
+  document.getElementById("detailTitle").textContent=name;
+  document.getElementById("detailMeta").textContent=meta;
+
+  const prodL=(v&&l)? l*1000/v : null;
+  K.innerHTML=[
+    ["Efetivo bovino",fmtC(e)],
+    ["Corte (est.)",fmtC(corte)],
+    ["Leite (est.)",fmtC(leite)],
+    ["Vacas ordenhadas",fmtC(v)],
+    ["Leite (mil L)",fmtC(l)],
+    ["L/vaca/ano",fmt(prodL)],
+    ["Densidade cab/km²",fmt(div(e,area),1)],
+    ["UA/km²",fmt(div(e*S.ua,area),1)]
+  ].map(k=>`<div class="kpi"><b>${k[1]}</b><span>${k[0]}</span></div>`).join("");
+
+  /* --- série temporal --- */
+  const src = sel ? S.years.map(yy=>({y:yy,e:val(sel.efetivo,yy),v:val(sel.vacas,yy),l:val(sel.leite,yy)}))
+                  : (()=>{const s=stateSeries();return S.years.map(yy=>({y:yy,...s[yy]}))})();
+  const ds=[
+    {label:"Efetivo bovino",data:src.map(d=>d.e),borderColor:"#C4552E",backgroundColor:"rgba(196,85,46,.13)",fill:true,yAxisID:"y",tension:.3,pointRadius:0,borderWidth:2},
+    {label:"Vacas ordenhadas",data:src.map(d=>d.v),borderColor:"#7FA23C",yAxisID:"y1",tension:.3,pointRadius:0,borderWidth:1.6},
+    {label:"Leite (mil L)",data:src.map(d=>d.l),borderColor:"#E0A93B",yAxisID:"y1",tension:.3,pointRadius:0,borderWidth:1.6,borderDash:[4,3]}
+  ];
+  const opt={responsive:true,maintainAspectRatio:false,interaction:{mode:"index",intersect:false},
+    plugins:{legend:{labels:{color:"#A8B5B0",boxWidth:8,font:{size:9,family:"IBM Plex Mono"}}},
+             tooltip:{backgroundColor:"#0E1E1D",borderColor:"#2C534E",borderWidth:1,titleFont:{size:11},bodyFont:{size:10.5,family:"IBM Plex Mono"}}},
+    scales:{x:{ticks:{color:"#7D908B",font:{size:8.5,family:"IBM Plex Mono"},maxTicksLimit:7},grid:{display:false}},
+            y:{ticks:{color:"#7D908B",font:{size:8.5,family:"IBM Plex Mono"},callback:v=>fmtC(v)},grid:{color:"rgba(44,83,78,.35)"}},
+            y1:{position:"right",ticks:{color:"#7D908B",font:{size:8.5,family:"IBM Plex Mono"},callback:v=>fmtC(v)},grid:{display:false}}}};
+  if(chH) chH.destroy();
+  chH=new Chart(document.getElementById("chartHerd"),{type:"line",data:{labels:src.map(d=>d.y),datasets:ds},options:opt});
+
+  /* --- composição --- */
+  if(chM) chM.destroy();
+  chM=new Chart(document.getElementById("chartMix"),{type:"doughnut",
+    data:{labels:["Corte","Leite"],datasets:[{data:[corte||0,leite||0],
+      backgroundColor:["#C4552E","#7FA23C"],borderColor:"#15302D",borderWidth:2}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:"62%",
+      plugins:{legend:{position:"right",labels:{color:"#A8B5B0",boxWidth:9,font:{size:10}}},
+        tooltip:{callbacks:{label:c=>` ${c.label}: ${fmtC(c.raw)} cab (${(100*c.raw/((corte||0)+(leite||0))).toFixed(1)}%)`}}}}});
+
+  renderRanks();
+  document.getElementById("rankWin").textContent=`${S.trendFrom} → ${S.trendTo}`;
+}
+function renderRanks(){
+  const arr=[];
+  S.mun.forEach(m=>{
+    const a=segHerd(m,S.trendFrom,S.seg), b=segHerd(m,S.trendTo,S.seg);
+    if(a&&b&&a>=1000) arr.push({m,p:100*(b-a)/a,d:b-a});
+  });
+  arr.sort((x,y)=>y.p-x.p);
+  const row=r=>`<tr data-id="${r.m.id}"><td>${r.m.nome}</td>
+      <td style="color:${r.p>=0?"#C4552E":"#3E7C8C"}">${pct(r.p)}</td></tr>`;
+  document.getElementById("tblUp").innerHTML   = arr.slice(0,8).map(row).join("")||`<tr><td class="empty">Sem dados no período</td></tr>`;
+  document.getElementById("tblDown").innerHTML = arr.slice(-8).reverse().map(row).join("")||"";
+  document.querySelectorAll("table.rank tr[data-id]").forEach(tr=>
+    tr.onclick=()=>{select(tr.dataset.id); zoomTo(tr.dataset.id)});
+}
+function select(id){
+  S.selected = (S.selected===id)? null : id;
+  layer.setStyle(styleFor);
+  if(S.selected) layer.eachLayer(l=>{ if(l.feature.properties.id===S.selected) l.setStyle(SEL) });
+  renderRight();
+  if(window.innerWidth<=1150) document.getElementById("right").classList.add("show");
+}
+function zoomTo(id){ layer.eachLayer(l=>{ if(l.feature.properties.id===id) map.fitBounds(l.getBounds(),{padding:[60,60]}) }); }
+
+/* --- sparkline do cabeçalho --- */
+function drawPulse(){
+  const s=stateSeries(), ys=S.years, data=ys.map(y=>s[y].e);
+  if(chP) chP.destroy();
+  chP=new Chart(document.getElementById("statePulse"),{type:"line",
+    data:{labels:ys,datasets:[{data,borderColor:"#E0A93B",borderWidth:1.8,pointRadius:0,tension:.34,
+      fill:true,backgroundColor:"rgba(224,169,59,.12)"}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
+      tooltip:{displayColors:false,backgroundColor:"#0E1E1D",borderColor:"#2C534E",borderWidth:1,
+        callbacks:{label:c=>` ${fmt(c.raw)} cabeças`}}},
+      scales:{x:{display:false},y:{display:false}},elements:{line:{borderCapStyle:"round"}}}});
+  const last=data.at(-1), prev=data.at(-2);
+  document.getElementById("pulseVal").textContent=fmtC(last);
+  document.getElementById("pulseDelta").textContent=
+    `${ys[0]}–${ys.at(-1)} · ${pct(100*(last-data[0])/data[0])} · a.a. ${pct(100*(last/prev-1))}`;
+}
+
+/* =====================================================================
+   5. IMPORTAÇÃO DE DADOS DE PASTAGEM
+   ===================================================================== */
+function ingest(rows){
+  const norm=s=>String(s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+  const keys=Object.keys(rows[0]||{});
+  const find=(...kw)=>keys.find(k=>kw.some(w=>norm(k).includes(w)));
+  const kId=find("cod","geocod","ibge","id"), kA=find("pastagem","pasto","area_past"),
+        kD=find("degrad"), kN=find("municip","nome");
+  if(!kId&&!kN) return alert("Não encontrei coluna de código IBGE nem de nome de município no arquivo.");
+  const byName=new Map(); S.mun.forEach(m=>byName.set(norm(m.nome),m));
+  let hit=0;
+  rows.forEach(r=>{
+    let m = kId ? S.mun.get(String(r[kId]).slice(0,7)) : null;
+    if(!m && kN) m = byName.get(norm(r[kN]));
+    if(!m) return;
+    const num=x=>{const n=Number(String(x).replace(/\./g,"").replace(",",".")); return isFinite(n)?n:null};
+    if(kA) m.pastArea=num(r[kA]);
+    if(kD){ const d=num(r[kD]); m.pastDeg = (d!=null&&d<=100&&m.pastArea&&d<m.pastArea/50)? m.pastArea*d/100 : d; }
+    hit++;
+  });
+  S.pasture=hit>0;
+  S.sources.push({ok:hit>0,t:`Importação local · ${hit} municípios com dados de pastagem`});
+  buildMetricSelect(); redraw(); renderStatus();
+  alert(`${hit} municípios vinculados.\nOs indicadores de pastagem e lotação já estão disponíveis na lista de camadas.`);
+}
+
+/* =====================================================================
+   6. UI
+   ===================================================================== */
+function buildMetricSelect(){
+  const sel=document.getElementById("metric"), cur=sel.value;
+  sel.innerHTML=Object.entries(METRICS).filter(([,m])=>!m.needs||S.pasture)
+    .map(([k,m])=>`<option value="${k}">${m.lab}</option>`).join("");
+  sel.value = cur && sel.querySelector(`[value="${cur}"]`) ? cur : "efetivo";
+  ["bivX","bivY"].forEach((id,i)=>{
+    const s=document.getElementById(id), c=s.value;
+    s.innerHTML=sel.innerHTML;
+    s.value = c && s.querySelector(`[value="${c}"]`) ? c : (i? "densMun":"il");
+  });
+}
+function renderStatus(){
+  document.getElementById("status").innerHTML =
+    `<div style="color:var(--gold);letter-spacing:.11em;margin-bottom:5px">FONTES ATIVAS</div>`+
+    S.sources.map(s=>`<div class="ln"><i class="dot" style="background:${s.ok?"#7FA23C":"#C4552E"}"></i><span>${s.t}</span></div>`).join("")+
+    (S.pasture?"":`<div class="ln" style="margin-top:6px;color:var(--bone-mute)"><i class="dot" style="background:#4A5F5B"></i><span>Pastagem/degradação: aguardando importação</span></div>`);
+}
+function fillYearSelects(){
+  const o=S.years.map(y=>`<option value="${y}">${y}</option>`).join("");
+  const a=document.getElementById("trendFrom"), b=document.getElementById("trendTo");
+  a.innerHTML=o; b.innerHTML=o;
+  S.trendFrom=S.years[Math.max(0,S.years.length-11)]; S.trendTo=S.years.at(-1);
+  a.value=S.trendFrom; b.value=S.trendTo;
+  const r=document.getElementById("yearRange");
+  r.max=S.years.length-1; r.value=S.years.length-1;
+  S.year=S.years.at(-1);
+  document.getElementById("yearLbl").textContent=S.year;
+}
+function wire(){
+  document.getElementById("metric").onchange=e=>{S.metric=e.target.value;redraw()};
+  document.getElementById("classify").onchange=e=>{S.classify=e.target.value;redraw()};
+  document.querySelectorAll("[data-mode]").forEach(b=>b.onclick=()=>{
+    document.querySelectorAll("[data-mode]").forEach(x=>x.classList.remove("on"));
+    b.classList.add("on"); S.mode=b.dataset.mode;
+    document.getElementById("bivCtl").style.display   = S.mode==="biv"  ?"block":"none";
+    document.getElementById("trendCtl").style.display = S.mode==="trend"?"block":"none";
+    redraw();
+  });
+  document.querySelectorAll("[data-seg]").forEach(b=>b.onclick=()=>{
+    document.querySelectorAll("[data-seg]").forEach(x=>x.classList.remove("on"));
+    b.classList.add("on"); S.seg=b.dataset.seg; redraw();
+  });
+  document.querySelectorAll("[data-base]").forEach(b=>b.onclick=()=>{
+    document.querySelectorAll("[data-base]").forEach(x=>x.classList.remove("on"));
+    b.classList.add("on"); setBase(b.dataset.base);
+  });
+  ["bivX","bivY"].forEach(id=>document.getElementById(id).onchange=redraw);
+  document.getElementById("trendFrom").onchange=e=>{S.trendFrom=e.target.value;redraw()};
+  document.getElementById("trendTo").onchange  =e=>{S.trendTo=e.target.value;redraw()};
+  document.getElementById("kFactor").oninput=e=>{S.k=+e.target.value;
+    document.getElementById("kVal").textContent=S.k.toFixed(1).replace(".",",");redraw()};
+  document.getElementById("uaFactor").onchange=e=>{S.ua=+e.target.value;redraw()};
+  ["thL","thM","thP"].forEach(id=>document.getElementById(id).onchange=e=>{S[id]=+e.target.value;redraw()});
+
+  const yr=document.getElementById("yearRange");
+  yr.oninput=e=>{S.year=S.years[+e.target.value];
+    document.getElementById("yearLbl").textContent=S.year; redraw()};
+  let timer=null;
+  document.getElementById("play").onclick=function(){
+    if(timer){clearInterval(timer);timer=null;this.textContent="▶";return}
+    this.textContent="❚❚";
+    timer=setInterval(()=>{
+      let i=+yr.value+1; if(i>+yr.max) i=0;
+      yr.value=i; yr.dispatchEvent(new Event("input"));
+    },850);
+  };
+
+  document.getElementById("search").oninput=e=>{
+    const q=e.target.value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+    if(q.length<3) return;
+    for(const [id,m] of S.mun){
+      if(m.nome.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").startsWith(q)){
+        select(id); zoomTo(id); break;
+      }
+    }
+  };
+  const mh=document.getElementById("minHerd");
+  mh.oninput=e=>{
+    const all=[];S.mun.forEach(m=>{const v=val(m.efetivo,S.year);if(v)all.push(v)});
+    all.sort((a,b)=>a-b);
+    S.minHerd = +e.target.value===0?0:all[Math.floor(all.length*e.target.value/101)];
+    document.getElementById("minHerdTxt").textContent =
+      S.minHerd? `Realçando municípios com ≥ ${fmt(S.minHerd)} cabeças` : "Todos os municípios";
+    layer.setStyle(styleFor);
+  };
+
+  document.getElementById("wmsAdd").onclick=()=>{
+    const u=document.getElementById("wmsUrl").value.trim(), n=document.getElementById("wmsLayer").value.trim();
+    if(!u||!n) return alert("Informe a URL do serviço e o nome da camada.");
+    if(wmsLayer) map.removeLayer(wmsLayer);
+    wmsLayer=L.tileLayer.wms(u,{layers:n,format:"image/png",transparent:true,opacity:.8,version:"1.1.1"});
+    let done=false;
+    const once=(ok,msg)=>{ if(done)return; done=true;
+      S.sources=S.sources.filter(s=>!s.t.startsWith("WMS "));
+      S.sources.push({ok,t:msg}); renderStatus(); };
+    wmsLayer.on("tileerror",()=>once(0,`WMS ${n}: servidor recusou (CORS ou camada inexistente)`));
+    wmsLayer.on("load",()=>once(1,`WMS ${n} ativo`));
+    wmsLayer.addTo(map); layer.bringToFront();
+  };
+  document.getElementById("wmsClear").onclick=()=>{ if(wmsLayer){map.removeLayer(wmsLayer);wmsLayer=null} };
+
+  document.getElementById("btnPanels").onclick=()=>{
+    document.getElementById("left").classList.toggle("show");
+    document.getElementById("right").classList.toggle("show");
+    setTimeout(()=>map.invalidateSize(),260);
+  };
+  document.getElementById("btnExport").onclick=exportCSV;
+  document.getElementById("btnImport").onclick=()=>openSheet(importHTML(),()=>{
+    const d=document.getElementById("drop"), f=document.getElementById("file");
+    d.onclick=()=>f.click();
+    d.ondragover=e=>{e.preventDefault();d.classList.add("hot")};
+    d.ondragleave=()=>d.classList.remove("hot");
+    d.ondrop=e=>{e.preventDefault();d.classList.remove("hot");read(e.dataTransfer.files[0])};
+    f.onchange=e=>read(e.target.files[0]);
+    function read(file){ if(!file)return;
+      Papa.parse(file,{header:true,skipEmptyLines:true,dynamicTyping:false,
+        complete:r=>{ document.getElementById("modal").classList.remove("open"); ingest(r.data); }});
+    }
+  });
+  document.getElementById("btnDocs").onclick=()=>openSheet(docsHTML());
+  document.getElementById("modal").onclick=e=>{ if(e.target.id==="modal") e.currentTarget.classList.remove("open") };
+  document.addEventListener("keydown",e=>{ if(e.key==="Escape") document.getElementById("modal").classList.remove("open") });
+}
+function openSheet(html,after){
+  document.getElementById("sheet").innerHTML=html;
+  document.getElementById("modal").classList.add("open");
+  if(after) after();
+}
+
+/* ---------- exportação ---------- */
+function exportCSV(){
+  const head=["cod_ibge","municipio","microrregiao","mesorregiao","area_km2","ano",
+    "efetivo_bovino","vacas_ordenhadas","leite_mil_l","produtividade_l_vaca_ano",
+    "indice_aptidao_leiteira","rebanho_corte_est","rebanho_leite_est",
+    "densidade_cab_km2","ua_km2","perfil_produtivo",
+    `variacao_pct_${S.trendFrom}_${S.trendTo}`,"area_pastagem_ha","pastagem_degradada_ha","pastagem_degradada_pct"];
+  const lines=[head.join(";")];
+  S.mun.forEach(m=>{
+    const y=S.year,e=val(m.efetivo,y),v=val(m.vacas,y),l=val(m.leite,y);
+    const q=x=>x==null||!isFinite(x)?"":String(x).replace(".",",");
+    lines.push([m.id,m.nome,m.micro,m.meso,q(m.areaKm2.toFixed(2)),y,q(e),q(v),q(l),
+      q((v&&l)?(l*1000/v).toFixed(1):null), q((v&&e)?(v/e).toFixed(4):null),
+      q(segHerd(m,y,"corte")?Math.round(segHerd(m,y,"corte")):null),
+      q(segHerd(m,y,"leite")?Math.round(segHerd(m,y,"leite")):null),
+      q(div(e,m.areaKm2)?.toFixed(2)), q(div(e*S.ua,m.areaKm2)?.toFixed(2)),
+      typoOf(m).lab, q(changePct(m)?.toFixed(2)),
+      q(m.pastArea), q(m.pastDeg), q(m.pastArea&&m.pastDeg?(100*m.pastDeg/m.pastArea).toFixed(2):null)
+    ].join(";"));
+  });
+  const blob=new Blob(["\ufeff"+lines.join("\n")],{type:"text/csv;charset=utf-8"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob); a.download=`maranhao_pastagem_rebanho_${S.year}.csv`; a.click();
+}
+
+/* ---------- conteúdo dos modais ---------- */
+function importHTML(){return `
+<h3>Importar dados de pastagem e degradação</h3>
+<p>O IBGE não publica área de pastagem nem grau de degradação. Esses dados vêm de sensoriamento remoto — e é você quem escolhe a fonte, para que a procedência fique explícita.</p>
+<div class="warn"><b>Onde obter:</b> Atlas das Pastagens (LAPIG/UFG) em <code>atlasdaspastagens.ufg.br</code> ou as estatísticas municipais do <code>MapBiomas</code>. Ambos permitem baixar tabelas por município. Filtre por Maranhão e exporte em CSV.</div>
+<h4>Formato aceito</h4>
+<p>CSV com uma linha por município. A plataforma reconhece as colunas automaticamente:</p>
+<ul>
+<li><code>cod_ibge</code> / <code>geocodigo</code> — código de 7 dígitos <i>(ou uma coluna com o nome do município)</i></li>
+<li><code>area_pastagem</code> — área de pastagem em hectares</li>
+<li><code>degradada</code> — área degradada em hectares <i>ou</i> percentual</li>
+</ul>
+<p>Uma vez vinculado, o painel libera lotação real em UA/ha, percentual degradado e leitura bivariada entre degradação e dinâmica do rebanho.</p>
+<div id="drop">Arraste o CSV aqui ou clique para escolher<input type="file" id="file" accept=".csv,.txt" hidden></div>`}
+
+function docsHTML(){return `
+<h3>Fontes &amp; método</h3>
+<p>Esta plataforma não guarda números. A cada carregamento ela consulta as APIs públicas do IBGE e recalcula tudo na sua máquina.</p>
+
+<h4>De onde vem cada número</h4>
+<ul>
+<li><b>Malha municipal</b> — <code>${IBGE}/v3/malhas/estados/21</code>, qualidade máxima, recorte por município.</li>
+<li><b>Efetivo bovino</b> — Pesquisa da Pecuária Municipal, tabela <b>3939</b> (Efetivo dos rebanhos, tipo Bovino). Série anual.</li>
+<li><b>Produção de leite</b> — PPM, tabela <b>74</b> (Produção de origem animal, produto Leite), em mil litros.</li>
+<li><b>Vacas ordenhadas</b> — PPM, tabela <b>94</b>.</li>
+<li><b>Área municipal</b> — calculada por integração geodésica sobre a própria malha (esferoide de raio 6.378.137 m).</li>
+</ul>
+<p>Variáveis e categorias são localizadas pelo <i>nome</i> via API de metadados, não por códigos fixos — se o IBGE renumerar algo, a plataforma continua funcionando.</p>
+
+<h4>Sobre "tempo real"</h4>
+<div class="warn">Pecuária e pastagem não têm dado em tempo real, e nenhuma plataforma séria vai oferecer isso. A PPM é <b>anual</b>, divulgada cerca de nove meses após o ano de referência. O mapeamento de pastagem do MapBiomas/LAPIG também é <b>anual</b>. O que existe em tempo quase real é outra coisa: alertas de desmatamento (DETER/INPE, diários) e focos de calor (INPE, horários). Aqui, "atual" significa <b>a última divulgação oficial, buscada na hora</b> — que é o dado mais recente que existe.</div>
+
+<h4>Como corte e leite são separados</h4>
+<p>A PPM publica o efetivo bovino total, não a aptidão. A separação é uma <b>estimativa transparente</b>:</p>
+<p><code>rebanho leiteiro = vacas ordenhadas × k</code> &nbsp;·&nbsp; <code>rebanho de corte = efetivo total − rebanho leiteiro</code></p>
+<p>O fator <b>k</b> (padrão 2,6) representa o rebanho total sustentado por cada vaca em lactação — vacas secas, novilhas de reposição, bezerros e reprodutores. Ele varia com o sistema produtivo, por isso é um controle ajustável e não uma constante escondida. Em sistemas leiteiros de baixa tecnificação no Nordeste, valores entre 2,2 e 3,0 são plausíveis.</p>
+
+<h4>Perfil de produtores</h4>
+<p>A tipologia usa o <b>índice de aptidão leiteira</b> <code>IL = vacas ordenhadas ÷ efetivo bovino</code> combinado à produtividade em litros por vaca por ano. Os cortes são editáveis no painel esquerdo:</p>
+<ul>
+<li><b>IL &lt; 0,05</b> — corte especializado</li>
+<li><b>0,05 ≤ IL &lt; 0,10</b> — corte com leite complementar</li>
+<li><b>0,10 ≤ IL &lt; 0,20</b> — misto, separado em familiar ou tecnificado pelo limiar de produtividade</li>
+<li><b>IL ≥ 0,20</b> — leite, também separado pela produtividade</li>
+</ul>
+<p>Produtividade abaixo do limiar indica sistema extensivo, com ordenha manual e bezerro ao pé — o retrato da pecuária leiteira familiar. Acima, indica especialização.</p>
+<div class="warn">Esta é uma tipologia <b>derivada de estatística municipal</b>, não um censo de estabelecimentos. Para perfil por porte de produtor com base primária, o dado correto é o Censo Agropecuário 2017, por grupos de área e condição do produtor. Ela descreve o <i>sistema predominante no município</i>, não cada propriedade.</div>
+
+<h4>Degradação de pastagem</h4>
+<p>Duas formas de trazer o dado, ambas com procedência explícita:</p>
+<ul>
+<li><b>Camada WMS</b> — aponte o painel para o servidor do LAPIG (<code>maps.lapig.iesa.ufg.br/ows</code>) ou outro serviço OGC. O raster entra como sobreposição visual. O nome exato da camada vem do <code>GetCapabilities</code> do servidor; alguns serviços bloqueiam requisições de outros domínios, e nesse caso o painel de fontes avisa.</li>
+<li><b>Importação municipal</b> — baixe a tabela por município no Atlas das Pastagens ou MapBiomas e importe o CSV. Aí a plataforma calcula lotação real em UA/ha, percentual degradado e cruza com a dinâmica do rebanho.</li>
+</ul>
+<p>A lotação usa <code>UA = cabeças × fator</code>, padrão 0,75 UA por cabeça — um rebanho misto de cria, recria e engorda. Lotação acima da capacidade de suporte é o principal indicador de pressão que leva à degradação.</p>
+
+<h4>Leitura bivariada</h4>
+<p>O modo bivariado cruza dois indicadores em tercis, numa matriz 3×3. É a leitura mais útil aqui: municípios com <b>pastagem muito degradada e rebanho ainda crescendo</b> são onde a pressão está se acumulando — prioridade para recuperação. O oposto, degradação alta com rebanho em queda, sugere abandono ou conversão para lavoura.</p>
+
+<h4>Limites que você precisa conhecer</h4>
+<ul>
+<li>A PPM é uma <b>estimativa</b> de informantes municipais, não um censo. Municípios pequenos têm mais ruído.</li>
+<li>Municípios criados ou com limites alterados quebram a comparação entre anos distantes.</li>
+<li>A separação corte/leite é modelada, não medida.</li>
+<li>Densidade calculada sobre a área total do município subestima a pressão real; use a densidade sobre área de pastagem depois de importar os dados.</li>
+</ul>
+
+<h4>Créditos</h4>
+<p>IBGE — Pesquisa da Pecuária Municipal e malhas territoriais. LAPIG/UFG e MapBiomas — mapeamento de pastagens. Base cartográfica: CARTO, OpenStreetMap, Esri.</p>`}
+
+/* =====================================================================
+   7. BOOT
+   ===================================================================== */
+(async function(){
+  try{
+    await load();
+    buildMetricSelect(); fillYearSelects();
+    initMap(); wire();
+    document.getElementById("typoLegend").innerHTML=
+      TYPO.slice(0,6).map(t=>`<div><i class="sw" style="background:${t.c}"></i>${t.lab}</div>`).join("");
+    recomputeBreaks(); redraw(); drawPulse(); renderStatus();
+    boot(100,"pronto");
+    const b=document.getElementById("boot");
+    b.style.opacity=0; setTimeout(()=>b.remove(),450);
+  }catch(e){ console.error(e); }
+})();
+</script>
+</body>
+</html>
